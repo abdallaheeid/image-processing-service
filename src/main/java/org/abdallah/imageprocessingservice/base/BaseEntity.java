@@ -4,10 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonView;
 import jakarta.persistence.*;
 import jakarta.xml.bind.annotation.*;
-import lombok.AccessLevel;
-import lombok.Data;
-import lombok.NonNull;
-import lombok.Setter;
+import lombok.*;
 import org.abdallah.imageprocessingservice.utils.Views;
 import org.springframework.data.annotation.CreatedBy;
 import org.springframework.data.annotation.CreatedDate;
@@ -22,8 +19,9 @@ import java.util.UUID;
 @EntityListeners(AuditingEntityListener.class)
 @XmlRootElement
 @Data
+@NoArgsConstructor
 @XmlAccessorType(XmlAccessType.FIELD)
-public class BaseEntity {
+public abstract class BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE)
