@@ -34,4 +34,4 @@ build/
 
 uploads
 imageUser_accessKeys.csv
-src/main/resources/*.properties
+src/main/resources/application-dev.properties
