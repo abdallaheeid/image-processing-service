@@ -11,6 +11,7 @@ import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.abdallah.imageprocessingservice.dto.ImageResponse;
 import org.abdallah.imageprocessingservice.dto.TransformRequest;
+import org.abdallah.imageprocessingservice.image.Image;
 import org.abdallah.imageprocessingservice.image.ImageService;
 import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
@@ -40,15 +41,20 @@ public class ImageController {
         return ResponseEntity.ok(imageService.upload(file));
     }
 
-    @Operation(summary = "Retrieve an image file", description = "Returns the actual binary image.")
+    @Operation(summary = "Retrieve an image file")
     @GetMapping("/{uuid}")
-    public ResponseEntity<@NonNull Resource> getImage(@PathVariable String uuid) {
-        Resource resource = imageService.loadImageResource(uuid);
+    public ResponseEntity<byte[]> getImage(@PathVariable String uuid) throws Exception {
+
+        Image image = imageService.getByUuid(uuid);
+        byte[] bytes = imageService.loadImageData(uuid);
+
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + resource.getFilename() + "\"")
-                .contentType(MediaType.APPLICATION_OCTET_STREAM)
-                .body(resource);
+                .contentType(MediaType.parseMediaType(image.getContentType()))
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        "inline; filename=\"" + image.getOriginalFileName() + "\"")
+                .body(bytes);
     }
+
 
     @Operation(summary = "List images", description = "Returns paginated list of images for current user.")
     @GetMapping

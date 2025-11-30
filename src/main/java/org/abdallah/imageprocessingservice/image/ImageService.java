@@ -5,18 +5,15 @@ import org.abdallah.imageprocessingservice.dto.ImageResponse;
 import org.abdallah.imageprocessingservice.dto.TransformRequest;
 import org.abdallah.imageprocessingservice.storage.StorageService;
 import org.abdallah.imageprocessingservice.transformations.ImageTransformService;
-import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
-
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
-import java.io.File;
-import java.io.IOException;
+import java.io.ByteArrayInputStream;
 import java.util.UUID;
 
 @Service
@@ -29,74 +26,92 @@ public class ImageService {
 
     private String currentUsername() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        assert auth != null;
         return auth.getName();
     }
 
-    public ImageResponse upload(MultipartFile file) throws IOException {
-        String owner = currentUsername();
-        String uuid = UUID.randomUUID().toString();
+    public Image getByUuid(String uuid) {
+        Image img = repository.findByUuid(uuid);
+        if (img == null) throw new RuntimeException("Image not found");
+        return img;
+    }
 
+    public byte[] loadImageData(String uuid) throws Exception {
+        Image image = getByUuid(uuid);
+        // storagePath = "uploads/<uuid>.<ext>"
+        return storageService.load(image.getStoragePath());
+    }
+
+    public ImageResponse upload(MultipartFile file) throws Exception {
+        String owner = currentUsername();
         String ext = detectExtension(file.getOriginalFilename());
+
+        Image image = new Image();
+        String uuid = image.getUuid();
         String storedFileName = uuid + "." + ext;
 
-        String storagePath = storageService.save(file, storedFileName);
-
-        BufferedImage img = ImageIO.read(new File(storagePath));
+        // Read image locally (do NOT load from S3)
+        BufferedImage img = ImageIO.read(file.getInputStream());
         int width = img.getWidth();
         int height = img.getHeight();
 
-        Image image = new Image();
+        // Upload to S3
+        String storageKey = storageService.save(file, storedFileName); // returns "uploads/uuid.jpg"
+
         image.setOriginalFileName(file.getOriginalFilename());
         image.setStoredFileName(storedFileName);
         image.setContentType(file.getContentType());
         image.setSizeBytes(file.getSize());
         image.setWidth(width);
         image.setHeight(height);
-        image.setStoragePath(storagePath);
+
+        // store EXACT S3 key
+        image.setStoragePath(storageKey);
+
         image.setFormat(ext);
         image.setOriginalImage(true);
         image.setOwnerUsername(owner);
 
         Image saved = repository.save(image);
-
         return toResponse(saved);
     }
 
-    public Resource loadImageResource(String uuid) {
+
+    public byte[] loadImageResource(String uuid) throws Exception {
         Image image = repository.findByUuid(uuid);
-        return storageService.loadAsResource(image.getStoragePath());
+        return storageService.load(image.getStoragePath());
     }
 
     public Page<ImageResponse> listImages(Pageable pageable) {
         String owner = currentUsername();
-        return repository.findByOwnerUsername(owner, pageable).map(this::toResponse);
+        return repository.findByOwnerUsername(owner, pageable)
+                .map(this::toResponse);
     }
 
-    public ImageResponse transform(String uuid, TransformRequest request) throws IOException {
+    public ImageResponse transform(String uuid, TransformRequest request) throws Exception {
         Image original = repository.findByUuid(uuid);
-        if (original == null) {
+
+        if (original == null)
             throw new RuntimeException("Image not found");
-        }
 
         String targetFormat = request.getFormat() != null ? request.getFormat() : original.getFormat();
         String newUuid = UUID.randomUUID().toString();
         String storedFileName = newUuid + "." + targetFormat;
 
-        byte[] transformedBytes = transformService.transform(original.getStoragePath(), request, targetFormat);
-        String storagePath = storageService.saveBytes(transformedBytes, storedFileName);
+        byte[] originalBytes = storageService.load(original.getStoragePath());
+        byte[] transformedBytes = transformService.transform(originalBytes, request, targetFormat);
+        String storageKey = storageService.saveBytes(transformedBytes, storedFileName);
 
-        BufferedImage img = ImageIO.read(new File(storagePath));
-        int width = img.getWidth();
-        int height = img.getHeight();
+        BufferedImage img = ImageIO.read(new ByteArrayInputStream(transformedBytes));
 
         Image transformed = new Image();
         transformed.setOriginalFileName(original.getOriginalFileName());
         transformed.setStoredFileName(storedFileName);
         transformed.setContentType("image/" + targetFormat);
         transformed.setSizeBytes((long) transformedBytes.length);
-        transformed.setWidth(width);
-        transformed.setHeight(height);
-        transformed.setStoragePath(storagePath);
+        transformed.setWidth(img.getWidth());
+        transformed.setHeight(img.getHeight());
+        transformed.setStoragePath(storageKey);
         transformed.setFormat(targetFormat);
         transformed.setOriginalImage(false);
         transformed.setParentUuid(original.getUuid());

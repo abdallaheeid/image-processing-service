@@ -60,11 +60,10 @@ public class S3ImageStorage implements ImageStorage {
 
     @Override
     public byte[] load(String fileName) throws Exception {
-        String key = baseFolder + "/" + fileName;
 
         GetObjectRequest req = GetObjectRequest.builder()
                 .bucket(bucket)
-                .key(key)
+                .key(fileName)
                 .build();
 
         return getClient().getObjectAsBytes(req).asByteArray();
