@@ -6,7 +6,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import lombok.RequiredArgsConstructor;
+import org.abdallah.imageprocessingservice.base.BaseController;
 import org.abdallah.imageprocessingservice.dto.LoginRequest;
 import org.abdallah.imageprocessingservice.dto.RegisterRequest;
 import org.abdallah.imageprocessingservice.user.User;
@@ -19,12 +19,16 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api")
-@RequiredArgsConstructor
 @Tag(name = "Authentication", description = "User registration and login endpoints")
-public class UserController {
+public class UserController extends BaseController<User> {
 
     private final UserService service;
     private final JwtUtil jwtUtil;
+
+    public UserController(UserService service, JwtUtil jwtUtil) {
+        this.service = service;
+        this.jwtUtil = jwtUtil;
+    }
 
     @Operation(summary = "Register a new user", description = "Creates a new account and returns a JWT token.")
     @ApiResponses({

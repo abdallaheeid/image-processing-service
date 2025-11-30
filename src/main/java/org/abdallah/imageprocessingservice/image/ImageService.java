@@ -1,4 +1,130 @@
 package org.abdallah.imageprocessingservice.image;
 
+import lombok.RequiredArgsConstructor;
+import org.abdallah.imageprocessingservice.dto.ImageResponse;
+import org.abdallah.imageprocessingservice.dto.TransformRequest;
+import org.abdallah.imageprocessingservice.storage.StorageService;
+import org.abdallah.imageprocessingservice.transformations.ImageTransformService;
+import org.springframework.core.io.Resource;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
+
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
+import java.util.UUID;
+
+@Service
+@RequiredArgsConstructor
 public class ImageService {
+
+    private final ImageRepository repository;
+    private final StorageService storageService;
+    private final ImageTransformService transformService;
+
+    private String currentUsername() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        return auth.getName();
+    }
+
+    public ImageResponse upload(MultipartFile file) throws IOException {
+        String owner = currentUsername();
+        String uuid = UUID.randomUUID().toString();
+
+        String ext = detectExtension(file.getOriginalFilename());
+        String storedFileName = uuid + "." + ext;
+
+        String storagePath = storageService.save(file, storedFileName);
+
+        BufferedImage img = ImageIO.read(new File(storagePath));
+        int width = img.getWidth();
+        int height = img.getHeight();
+
+        Image image = new Image();
+        image.setOriginalFileName(file.getOriginalFilename());
+        image.setStoredFileName(storedFileName);
+        image.setContentType(file.getContentType());
+        image.setSizeBytes(file.getSize());
+        image.setWidth(width);
+        image.setHeight(height);
+        image.setStoragePath(storagePath);
+        image.setFormat(ext);
+        image.setOriginalImage(true);
+        image.setOwnerUsername(owner);
+
+        Image saved = repository.save(image);
+
+        return toResponse(saved);
+    }
+
+    public Resource loadImageResource(String uuid) {
+        Image image = repository.findByUuid(uuid);
+        return storageService.loadAsResource(image.getStoragePath());
+    }
+
+    public Page<ImageResponse> listImages(Pageable pageable) {
+        String owner = currentUsername();
+        return repository.findByOwnerUsername(owner, pageable).map(this::toResponse);
+    }
+
+    public ImageResponse transform(String uuid, TransformRequest request) throws IOException {
+        Image original = repository.findByUuid(uuid);
+        if (original == null) {
+            throw new RuntimeException("Image not found");
+        }
+
+        String targetFormat = request.getFormat() != null ? request.getFormat() : original.getFormat();
+        String newUuid = UUID.randomUUID().toString();
+        String storedFileName = newUuid + "." + targetFormat;
+
+        byte[] transformedBytes = transformService.transform(original.getStoragePath(), request, targetFormat);
+        String storagePath = storageService.saveBytes(transformedBytes, storedFileName);
+
+        BufferedImage img = ImageIO.read(new File(storagePath));
+        int width = img.getWidth();
+        int height = img.getHeight();
+
+        Image transformed = new Image();
+        transformed.setOriginalFileName(original.getOriginalFileName());
+        transformed.setStoredFileName(storedFileName);
+        transformed.setContentType("image/" + targetFormat);
+        transformed.setSizeBytes((long) transformedBytes.length);
+        transformed.setWidth(width);
+        transformed.setHeight(height);
+        transformed.setStoragePath(storagePath);
+        transformed.setFormat(targetFormat);
+        transformed.setOriginalImage(false);
+        transformed.setParentUuid(original.getUuid());
+        transformed.setOwnerUsername(original.getOwnerUsername());
+        transformed.setTransformations(request.toString());
+
+        Image saved = repository.save(transformed);
+        return toResponse(saved);
+    }
+
+    private String detectExtension(String name) {
+        if (name == null || !name.contains(".")) return "png";
+        return name.substring(name.lastIndexOf('.') + 1).toLowerCase();
+    }
+
+    private ImageResponse toResponse(Image image) {
+        return ImageResponse.builder()
+                .uuid(image.getUuid())
+                .url("/api/images/" + image.getUuid())
+                .originalFileName(image.getOriginalFileName())
+                .contentType(image.getContentType())
+                .sizeBytes(image.getSizeBytes())
+                .width(image.getWidth())
+                .height(image.getHeight())
+                .format(image.getFormat())
+                .originalImage(image.isOriginalImage())
+                .parentUuid(image.getParentUuid())
+                .transformations(image.getTransformations())
+                .build();
+    }
 }
