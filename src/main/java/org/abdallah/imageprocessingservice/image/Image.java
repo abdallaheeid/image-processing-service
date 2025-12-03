@@ -29,9 +29,6 @@ public class Image extends BaseEntity {
     @Column(nullable = false)
     private String storagePath;
 
-    //@Column(nullable = false)
-    //private String s3Path;
-
     @Column(nullable = false)
     private String format;
 

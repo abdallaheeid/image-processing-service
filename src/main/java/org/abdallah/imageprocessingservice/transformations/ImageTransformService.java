@@ -9,19 +9,15 @@ import java.awt.color.ColorSpace;
 import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 import java.awt.image.ColorConvertOp;
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.IOException;
 
 @Service
 public class ImageTransformService {
 
-    public byte[] transform(byte[] inputBytes, TransformRequest request, String targetFormat) throws Exception {
-
-        BufferedImage image = ImageIO.read(new ByteArrayInputStream(inputBytes));
-
-        if (image == null) {
-            throw new IllegalArgumentException("Cannot decode input image bytes");
-        }
+    public byte[] transform(String inputPath, TransformRequest request, String targetFormat) throws IOException {
+        BufferedImage image = ImageIO.read(new File(inputPath));
 
         if (request.getResize() != null) {
             image = resize(image, request.getResize().getWidth(), request.getResize().getHeight());
@@ -50,28 +46,32 @@ public class ImageTransformService {
             }
         }
 
-        if (targetFormat.equalsIgnoreCase("jpeg") || targetFormat.equalsIgnoreCase("jfif")) {
+        if (targetFormat.equalsIgnoreCase("jpeg")) {
+            targetFormat = "jpg";
+        }
+        if (targetFormat.equalsIgnoreCase("jfif")) {
             targetFormat = "jpg";
         }
 
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         boolean ok = ImageIO.write(image, targetFormat, baos);
-
         if (!ok) {
-            throw new Exception("ImageIO failed to write format: " + targetFormat);
+            throw new IOException("ImageIO could not write format: " + targetFormat);
         }
-
         return baos.toByteArray();
     }
 
     private BufferedImage resize(BufferedImage src, int width, int height) {
         BufferedImage out = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
         Graphics2D g = out.createGraphics();
+
         g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
         g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
         g.drawImage(src, 0, 0, width, height, null);
         g.dispose();
+
         return out;
     }
 

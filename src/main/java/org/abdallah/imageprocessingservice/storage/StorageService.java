@@ -1,7 +1,5 @@
 package org.abdallah.imageprocessingservice.storage;
 
-import lombok.NoArgsConstructor;
-import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
@@ -14,55 +12,35 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 
 @Service
-@RequiredArgsConstructor
 public class StorageService {
 
-//    @Value("${app.upload-dir:uploads}")
-//    private String uploadDir;
-//
-//    public String save(MultipartFile file, String storedFileName) throws IOException {
-//        Path root = Paths.get(uploadDir).toAbsolutePath().normalize();
-//        Files.createDirectories(root);
-//
-//        Path target = root.resolve(storedFileName);
-//        file.transferTo(target);
-//        return target.toString();
-//    }
-//
-//    public String saveBytes(byte[] bytes, String storedFileName) throws IOException {
-//        Path root = Paths.get(uploadDir).toAbsolutePath().normalize();
-//        Files.createDirectories(root);
-//
-//        Path target = root.resolve(storedFileName).normalize();
-//
-//        // Use a real output stream
-//        try (BufferedOutputStream bos = new BufferedOutputStream(Files.newOutputStream(target))) {
-//            bos.write(bytes);
-//        }
-//
-//        return target.toFile().getAbsolutePath();  // always return absolute, safe path
-//    }
-//
-//    public Resource loadAsResource(String storagePath) {
-//        return new FileSystemResource(storagePath);
-//    }
+    @Value("${app.upload-dir:uploads}")
+    private String uploadDir;
 
-    private final ImageStorage storage;
+    public String save(MultipartFile file, String storedFileName) throws IOException {
+        Path root = Paths.get(uploadDir).toAbsolutePath().normalize();
+        Files.createDirectories(root);
 
-    public String save(MultipartFile file, String fileName) throws Exception {
-        return storage.save(file.getBytes(), fileName);
+        Path target = root.resolve(storedFileName);
+        file.transferTo(target);
+        return target.toString();
     }
 
-    public String saveBytes(byte[] bytes, String fileName) throws Exception {
-        return storage.save(bytes, fileName);
+    public String saveBytes(byte[] bytes, String storedFileName) throws IOException {
+        Path root = Paths.get(uploadDir).toAbsolutePath().normalize();
+        Files.createDirectories(root);
+
+        Path target = root.resolve(storedFileName).normalize();
+
+        // Use a real output stream
+        try (BufferedOutputStream bos = new BufferedOutputStream(Files.newOutputStream(target))) {
+            bos.write(bytes);
+        }
+
+        return target.toFile().getAbsolutePath();  // always return absolute, safe path
     }
 
-    public byte[] load(String fileName) throws Exception {
-        return storage.load(fileName);
+    public Resource loadAsResource(String storagePath) {
+        return new FileSystemResource(storagePath);
     }
-
-    public void delete(String fileName) throws Exception {
-        storage.delete(fileName);
-    }
-
 }

@@ -33,5 +33,3 @@ build/
 .vscode/
 
 uploads
-imageUser_accessKeys.csv
-src/main/resources/*.properties
