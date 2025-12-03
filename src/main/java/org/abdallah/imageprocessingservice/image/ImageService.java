@@ -29,23 +29,25 @@ public class ImageService {
 
     private String currentUsername() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        assert auth != null;
         return auth.getName();
     }
 
     public ImageResponse upload(MultipartFile file) throws IOException {
         String owner = currentUsername();
-        String uuid = UUID.randomUUID().toString();
-
         String ext = detectExtension(file.getOriginalFilename());
+
+        Image image = new Image();
+        String uuid = image.getUuid();
         String storedFileName = uuid + "." + ext;
 
-        String storagePath = storageService.save(file, storedFileName);
-
-        BufferedImage img = ImageIO.read(new File(storagePath));
+        // Read image locally (do NOT load from S3)
+        BufferedImage img = ImageIO.read(file.getInputStream());
         int width = img.getWidth();
         int height = img.getHeight();
 
-        Image image = new Image();
+        String storagePath = storageService.save(file, storedFileName);
+
         image.setOriginalFileName(file.getOriginalFilename());
         image.setStoredFileName(storedFileName);
         image.setContentType(file.getContentType());
