@@ -46,6 +46,10 @@ public class ImageTransformService {
             }
         }
 
+        if (request.getWatermark() != null) {
+            image = watermark(image, request.getWatermark().getText());
+        }
+
         if (targetFormat.equalsIgnoreCase("jpeg")) {
             targetFormat = "jpg";
         }
@@ -131,5 +135,23 @@ public class ImageTransformService {
             }
         }
         return out;
+    }
+
+    // TODO: Adding watermark to the image transformation service
+    public BufferedImage watermark(BufferedImage src, String text) {
+
+        int alphaValue = 70;
+
+        BufferedImage out = new BufferedImage(src.getWidth(), src.getHeight(), src.getType());
+
+        Graphics graphics = out.getGraphics();
+        graphics.drawImage(src, 0, 0, null);
+        graphics.setFont(new Font("Arial", Font.PLAIN, 120));
+        graphics.setColor(new Color(255, 0, 0, alphaValue));
+        graphics.drawString(text, src.getWidth() / 2, src.getHeight() / 5);
+        graphics.dispose();
+
+        return out;
+
     }
 }

@@ -10,6 +10,7 @@ public class TransformRequest {
     private Integer rotate;
     private String format;
     private Filters filters;
+    private Watermark watermark;
 
     @Data
     public static class Resize {
@@ -29,5 +30,10 @@ public class TransformRequest {
     public static class Filters {
         private Boolean grayscale;
         private Boolean sepia;
+    }
+
+    @Data
+    public static class Watermark {
+        private String text;
     }
 }
