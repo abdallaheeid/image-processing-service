@@ -1,8 +1,11 @@
 package org.abdallah.imageprocessingservice.image;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.abdallah.imageprocessingservice.dto.ImageResponse;
 import org.abdallah.imageprocessingservice.dto.TransformRequest;
+import org.abdallah.imageprocessingservice.kafka.TransformProducer;
+import org.abdallah.imageprocessingservice.kafka.TransformTask;
 import org.abdallah.imageprocessingservice.storage.StorageService;
 import org.abdallah.imageprocessingservice.transformations.ImageTransformService;
 import org.springframework.core.io.Resource;
@@ -17,6 +20,7 @@ import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -26,6 +30,8 @@ public class ImageService {
     private final ImageRepository repository;
     private final StorageService storageService;
     private final ImageTransformService transformService;
+    private final TransformProducer producer;
+    private final ObjectMapper mapper = new ObjectMapper();
 
     private String currentUsername() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
@@ -114,7 +120,7 @@ public class ImageService {
         return name.substring(name.lastIndexOf('.') + 1).toLowerCase();
     }
 
-    private ImageResponse toResponse(Image image) {
+    public ImageResponse toResponse(Image image) {
         return ImageResponse.builder()
                 .uuid(image.getUuid())
                 .url("/api/images/" + image.getUuid())
@@ -128,5 +134,32 @@ public class ImageService {
                 .parentUuid(image.getParentUuid())
                 .transformations(image.getTransformations())
                 .build();
+    }
+
+    public String queueTransform(String uuid, TransformRequest request) throws Exception {
+
+        Image img = repository.findByUuid(uuid);
+
+        String newFileName = UUID.randomUUID().toString() + "." +
+                (request.getFormat() != null ? request.getFormat() : img.getFormat());
+
+        TransformTask task = new TransformTask();
+        task.setUuid(uuid);
+        task.setStoragePath(img.getStoragePath());
+        task.setRequest(request);
+        task.setTargetFormat(request.getFormat());
+        task.setOutputFileName(newFileName);
+        task.setOriginalFileName(img.getOriginalFileName());
+        task.setOwner(img.getOwnerUsername());
+
+        String json = mapper.writeValueAsString(task);
+
+        producer.sendTransformEvent(json);
+
+        return "queued";
+    }
+
+    public List<Image> findChildren(String parentUuid) {
+        return repository.findByParentUuid(parentUuid);
     }
 }
