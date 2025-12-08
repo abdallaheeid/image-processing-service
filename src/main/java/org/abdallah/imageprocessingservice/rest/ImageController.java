@@ -11,6 +11,7 @@ import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.abdallah.imageprocessingservice.dto.ImageResponse;
 import org.abdallah.imageprocessingservice.dto.TransformRequest;
+import org.abdallah.imageprocessingservice.image.Image;
 import org.abdallah.imageprocessingservice.image.ImageService;
 import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
@@ -20,6 +21,8 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/images")
@@ -79,4 +82,22 @@ public class ImageController {
     ) throws Exception {
         return ResponseEntity.ok(imageService.transform(uuid, request));
     }
+
+    @PostMapping("/{uuid}/transform-async")
+    public ResponseEntity<String> transformAsync(
+            @PathVariable String uuid,
+            @RequestBody TransformRequest request) throws Exception {
+
+        String status = imageService.queueTransform(uuid, request);
+
+        return ResponseEntity.accepted().body("Transformation queued");
+    }
+
+    @GetMapping("/{uuid}/children")
+    public ResponseEntity<List<ImageResponse>> getChildren(@PathVariable String uuid) {
+        List<Image> images = imageService.findChildren(uuid);
+        List<ImageResponse> responses = images.stream().map(imageService::toResponse).toList();
+        return ResponseEntity.ok(responses);
+    }
+
 }

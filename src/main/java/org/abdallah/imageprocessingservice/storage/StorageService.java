@@ -43,4 +43,8 @@ public class StorageService {
     public Resource loadAsResource(String storagePath) {
         return new FileSystemResource(storagePath);
     }
+
+    public byte[] loadByPath(String absolutePath) throws IOException {
+        return Files.readAllBytes(Paths.get(absolutePath));
+    }
 }
