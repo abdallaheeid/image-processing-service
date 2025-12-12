@@ -8,6 +8,7 @@ import org.abdallah.imageprocessingservice.kafka.TransformProducer;
 import org.abdallah.imageprocessingservice.kafka.TransformTask;
 import org.abdallah.imageprocessingservice.storage.StorageService;
 import org.abdallah.imageprocessingservice.transformations.ImageTransformService;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -70,6 +71,7 @@ public class ImageService {
         return toResponse(saved);
     }
 
+    @Cacheable(value="images", key = "#uuid")
     public Resource loadImageResource(String uuid) {
         Image image = repository.findByUuid(uuid);
         return storageService.loadAsResource(image.getStoragePath());

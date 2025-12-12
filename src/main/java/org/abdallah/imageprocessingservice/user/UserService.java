@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.abdallah.imageprocessingservice.dto.LoginRequest;
 import org.abdallah.imageprocessingservice.dto.RegisterRequest;
 import org.abdallah.imageprocessingservice.utils.JwtUtil;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -43,6 +44,7 @@ public class UserService implements UserDetailsService {
     }
 
     @Override
+    @Cacheable(value = "userCache", key = "#username")
     public @NonNull UserDetails loadUserByUsername(@NonNull String username) {
         User user = repo.findByUsername(username)
                 .orElseThrow(() -> new UsernameNotFoundException("Not found"));
